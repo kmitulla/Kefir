@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kefir Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23f5f0e8'/%3E%3Cellipse cx='32' cy='32' rx='22' ry='20' fill='%23fdfcf7' stroke='%23d4c9a8' stroke-width='1.5'/%3E%3Ccircle cx='24' cy='28' r='4' fill='%23e8dfc8' opacity='0.7'/%3E%3Ccircle cx='36' cy='25' r='3' fill='%23e8dfc8' opacity='0.6'/%3E%3Ccircle cx='30' cy='35' r='5' fill='%23e8dfc8' opacity='0.5'/%3E%3Ccircle cx='40' cy='33' r='3.5' fill='%23e8dfc8' opacity='0.6'/%3E%3Ccircle cx='22' cy='37' r='2.5' fill='%23e8dfc8' opacity='0.4'/%3E%3C/svg%3E">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-firestore-compat.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap');
+
+:root {
+  --cream: #faf6ee;
+  --warm-white: #fdfcf7;
+  --sand: #e8dfc8;
+  --tan: #d4c9a8;
+  --olive: #7a8b6f;
+  --olive-dark: #5a6b4f;
+  --brown: #8b7355;
+  --brown-dark: #6b5340;
+  --rust: #c4785a;
+  --rust-light: #e8a07a;
+  --charcoal: #3a3632;
+  --charcoal-light: #5a5652;
+  --milk: #fff9f0;
+  --sour: #e6c84a;
+  --fizzy: #7ab8d4;
+  --thick: #c49a6c;
+  --danger: #d45a5a;
+  --safe: #7aaa6f;
+  --shadow: 0 2px 20px rgba(58,54,50,0.08);
+  --shadow-lg: 0 8px 40px rgba(58,54,50,0.12);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream);
+  color: var(--charcoal);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+.app-header {
+  background: linear-gradient(135deg, var(--warm-white) 0%, var(--cream) 100%);
+  border-bottom: 1px solid var(--sand);
+  padding: 20px 32px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+.kefir-icon {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.app-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 28px;
+  color: var(--charcoal);
+  letter-spacing: -0.5px;
+}
+
+.app-subtitle {
+  font-size: 13px;
+  color: var(--charcoal-light);
+  font-weight: 300;
+  margin-top: -2px;
+}
+
+.user-section {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-id-display {
+  font-size: 12px;
+  color: var(--charcoal-light);
+  background: var(--sand);
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.sync-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--safe);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.tab-bar {
+  display: flex;
+  gap: 0;
+  padding: 0 32px;
+  background: var(--warm-white);
+  border-bottom: 1px solid var(--sand);
+  overflow-x: auto;
+}
+
+.tab-btn {
+  padding: 14px 24px;
+  border: none;
+  background: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--charcoal-light);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.tab-btn:hover {
+  color: var(--charcoal);
+  background: rgba(122,139,111,0.05);
+}
+
+.tab-btn.active {
+  color: var(--olive-dark);
+  border-bottom-color: var(--olive);
+}
+
+.tab-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px;
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hidden { display: none !important; }
+
+/* === DASHBOARD TAB === */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.card {
+  background: var(--warm-white);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(212,201,168,0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.card-full { grid-column: 1 / -1; }
+
+.card-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 20px;
+  margin-bottom: 20px;
+  color: var(--charcoal);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-title .icon {
+  font-size: 24px;
+}
+
+.slider-group {
+  margin-bottom: 28px;
+}
+
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.slider-value {
+  font-weight: 700;
+  color: var(--olive-dark);
+  font-size: 16px;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--sand);
+  outline: none;
+  transition: background 0.3s;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--olive);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(90,107,79,0.3);
+  transition: transform 0.2s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--olive);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(90,107,79,0.3);
+}
+
+.viz-container {
+  background: linear-gradient(180deg, var(--milk) 0%, var(--cream) 100%);
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 16px;
+  border: 1px solid var(--sand);
+  min-height: 200px;
+}
+
+.kefir-glass {
+  width: 120px;
+  height: 200px;
+  margin: 0 auto;
+  border-radius: 8px 8px 20px 20px;
+  border: 3px solid var(--tan);
+  background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 30%);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.5s ease;
+}
+
+.kefir-liquid {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  transition: all 0.8s ease;
+  border-radius: 0 0 17px 17px;
+}
+
+.kefir-whey {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  transition: all 0.8s ease;
+  border-radius: 0 0 17px 17px;
+}
+
+.property-bars {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.prop-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prop-label {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--charcoal-light);
+}
+
+.prop-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--sand);
+  overflow: hidden;
+}
+
+.prop-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.8s ease, background 0.5s ease;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status-safe {
+  background: rgba(122,170,111,0.15);
+  color: var(--safe);
+}
+
+.status-warning {
+  background: rgba(230,200,74,0.15);
+  color: #b5a030;
+}
+
+.status-danger {
+  background: rgba(212,90,90,0.15);
+  color: var(--danger);
+}
+
+.detail-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--charcoal-light);
+  margin-top: 12px;
+}
+
+.detail-text strong {
+  color: var(--charcoal);
+}
+
+/* === INFO TAB === */
+.info-section {
+  margin-bottom: 32px;
+}
+
+.info-section h2 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 24px;
+  margin-bottom: 16px;
+  color: var(--charcoal);
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--sand);
+}
+
+.info-section h3 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px;
+  margin: 20px 0 10px;
+  color: var(--olive-dark);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 16px;
+}
+
+.info-card {
+  background: var(--warm-white);
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid var(--sand);
+  box-shadow: var(--shadow);
+}
+
+.info-card h4 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 16px;
+  margin-bottom: 10px;
+  color: var(--brown-dark);
+}
+
+.info-card p, .info-card ul {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--charcoal-light);
+}
+
+.info-card ul {
+  padding-left: 18px;
+}
+
+.info-card ul li {
+  margin-bottom: 4px;
+}
+
+.warning-box {
+  background: rgba(212,90,90,0.08);
+  border: 1px solid rgba(212,90,90,0.2);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 16px 0;
+}
+
+.warning-box h4 {
+  color: var(--danger);
+  margin-bottom: 8px;
+}
+
+.tip-box {
+  background: rgba(122,139,111,0.08);
+  border: 1px solid rgba(122,139,111,0.2);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 16px 0;
+}
+
+.tip-box h4 {
+  color: var(--olive-dark);
+  margin-bottom: 8px;
+}
+
+/* === NOTES TAB === */
+.notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.notes-header h2 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 24px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: var(--olive);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--olive-dark);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--sand);
+  color: var(--charcoal);
+}
+
+.btn-secondary:hover {
+  background: var(--tan);
+}
+
+.btn-danger {
+  background: rgba(212,90,90,0.1);
+  color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: rgba(212,90,90,0.2);
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.note-form {
+  background: var(--warm-white);
+  border-radius: 16px;
+  padding: 28px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--sand);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--charcoal-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  padding: 10px 14px;
+  border: 1px solid var(--sand);
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  background: var(--cream);
+  color: var(--charcoal);
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--olive);
+}
+
+.form-group textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.note-card {
+  background: var(--warm-white);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid var(--sand);
+  box-shadow: var(--shadow);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.note-card.favorite {
+  border-color: var(--sour);
+  box-shadow: 0 2px 20px rgba(230,200,74,0.15);
+}
+
+.note-card .fav-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  line-height: 1;
+}
+
+.note-card .fav-btn:hover {
+  transform: scale(1.2);
+}
+
+.note-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.note-meta span {
+  font-size: 12px;
+  background: var(--cream);
+  padding: 3px 10px;
+  border-radius: 6px;
+  color: var(--charcoal-light);
+  font-weight: 500;
+}
+
+.note-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 17px;
+  margin-bottom: 8px;
+  color: var(--charcoal);
+  padding-right: 40px;
+}
+
+.note-body {
+  font-size: 14px;
+  color: var(--charcoal-light);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.note-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--charcoal-light);
+}
+
+.empty-state .icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  font-size: 15px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  .tab-content {
+    padding: 20px 16px;
+  }
+  .app-header {
+    padding: 16px;
+  }
+  .app-title {
+    font-size: 22px;
+  }
+  .tab-btn {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+  .property-bars {
+    grid-template-columns: 1fr;
+  }
+}
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  flex-direction: column;
+  gap: 16px;
+  transition: opacity 0.5s ease;
+}
+
+.loading-overlay.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loader-ring {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--sand);
+  border-top-color: var(--olive);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.select-wrapper {
+  position: relative;
+}
+
+.select-wrapper select {
+  width: 100%;
+  appearance: none;
+  padding-right: 32px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.toggle-label {
+  font-size: 14px;
+  color: var(--charcoal-light);
+}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loader-ring"></div>
+  <span style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--charcoal)">Kefir Dashboard lädt...</span>
+</div>
+
+<header class="app-header">
+  <svg class="kefir-icon" viewBox="0 0 64 64">
+    <defs>
+      <radialGradient id="grainGrad" cx="50%" cy="40%" r="50%">
+        <stop offset="0%" stop-color="#fdfcf7"/>
+        <stop offset="100%" stop-color="#e8dfc8"/>
+      </radialGradient>
+    </defs>
+    <circle cx="32" cy="32" r="30" fill="#f5f0e8" stroke="#d4c9a8" stroke-width="1"/>
+    <ellipse cx="26" cy="26" rx="8" ry="7" fill="url(#grainGrad)" stroke="#d4c9a8" stroke-width="0.8"/>
+    <ellipse cx="38" cy="24" rx="6" ry="5.5" fill="url(#grainGrad)" stroke="#d4c9a8" stroke-width="0.8"/>
+    <ellipse cx="32" cy="36" rx="9" ry="7" fill="url(#grainGrad)" stroke="#d4c9a8" stroke-width="0.8"/>
+    <ellipse cx="22" cy="38" rx="5" ry="4" fill="url(#grainGrad)" stroke="#d4c9a8" stroke-width="0.8"/>
+    <ellipse cx="42" cy="36" rx="5.5" ry="5" fill="url(#grainGrad)" stroke="#d4c9a8" stroke-width="0.8"/>
+    <circle cx="28" cy="29" r="1.5" fill="#d4c9a8" opacity="0.4"/>
+    <circle cx="35" cy="33" r="2" fill="#d4c9a8" opacity="0.3"/>
+    <circle cx="39" cy="28" r="1" fill="#d4c9a8" opacity="0.3"/>
+  </svg>
+  <div>
+    <div class="app-title">Kefir Dashboard</div>
+    <div class="app-subtitle">Fermentation &amp; Lagerung Tracker</div>
+  </div>
+  <div class="user-section">
+    <div class="sync-indicator" id="syncIndicator" title="Mit Firebase verbunden"></div>
+    <div class="user-id-display" id="userIdDisplay">Lade...</div>
+  </div>
+</header>
+
+<nav class="tab-bar">
+  <button class="tab-btn active" data-tab="dashboard">🥛 Fermentation</button>
+  <button class="tab-btn" data-tab="info">📖 Wissen & Lagerung</button>
+  <button class="tab-btn" data-tab="notes">📝 Notizen</button>
+</nav>
+
+<!-- ============ DASHBOARD TAB ============ -->
+<div class="tab-content" id="tab-dashboard">
+  <div class="dashboard-grid">
+
+    <div class="card card-full">
+      <div class="card-title"><span class="icon">⏱️</span> Fermentationseinstellungen</div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Lagerort</span>
+          <span class="slider-value" id="locationLabel">Kühlschrank (4°C)</span>
+        </div>
+        <input type="range" id="locationSlider" min="0" max="1" step="1" value="0">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--charcoal-light);margin-top:4px">
+          <span>Kühlschrank (~4°C)</span>
+          <span>Raumtemperatur (~22°C)</span>
+        </div>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Lagerzeit</span>
+          <span class="slider-value" id="timeLabel">0 Stunden</span>
+        </div>
+        <input type="range" id="timeSlider" min="0" max="336" step="1" value="0">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--charcoal-light);margin-top:4px">
+          <span>0h</span>
+          <span>7 Tage (168h)</span>
+          <span>14 Tage (336h)</span>
+        </div>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>Milchfettgehalt</span>
+          <span class="slider-value" id="fatLabel">3.5%</span>
+        </div>
+        <input type="range" id="fatSlider" min="0" max="3" step="1" value="2">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--charcoal-light);margin-top:4px">
+          <span>Mager (0.5%)</span>
+          <span>Fettarm (1.5%)</span>
+          <span>Vollmilch (3.5%)</span>
+          <span>Extra (3.8%+)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🥛</span> Kefir Vorschau</div>
+      <div class="viz-container" style="display:flex;flex-direction:column;align-items:center">
+        <div class="kefir-glass" id="kefirGlass">
+          <div class="kefir-whey" id="kefirWhey"></div>
+          <div class="kefir-liquid" id="kefirLiquid"></div>
+        </div>
+        <div id="statusBadge" class="status-badge status-safe" style="margin-top:16px">
+          ✅ Frisch & Mild
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> Eigenschaften</div>
+      <div class="property-bars">
+        <div class="prop-bar">
+          <div class="prop-label">Säure</div>
+          <div class="prop-track"><div class="prop-fill" id="barAcid" style="width:10%;background:var(--sour)"></div></div>
+        </div>
+        <div class="prop-bar">
+          <div class="prop-label">Kohlensäure</div>
+          <div class="prop-track"><div class="prop-fill" id="barFizz" style="width:5%;background:var(--fizzy)"></div></div>
+        </div>
+        <div class="prop-bar">
+          <div class="prop-label">Dickflüssigkeit</div>
+          <div class="prop-track"><div class="prop-fill" id="barThick" style="width:20%;background:var(--thick)"></div></div>
+        </div>
+        <div class="prop-bar">
+          <div class="prop-label">Probiotika</div>
+          <div class="prop-track"><div class="prop-fill" id="barProb" style="width:30%;background:var(--olive)"></div></div>
+        </div>
+        <div class="prop-bar">
+          <div class="prop-label">Alkohol</div>
+          <div class="prop-track"><div class="prop-fill" id="barAlc" style="width:2%;background:var(--rust)"></div></div>
+        </div>
+        <div class="prop-bar">
+          <div class="prop-label">Laktose (rest)</div>
+          <div class="prop-track"><div class="prop-fill" id="barLact" style="width:90%;background:var(--brown)"></div></div>
+        </div>
+      </div>
+      <div class="detail-text" id="detailText">
+        Bewege die Schieberegler, um zu sehen, wie sich der Kefir bei verschiedenen Bedingungen verändert.
+      </div>
+    </div>
+
+    <div class="card card-full">
+      <div class="card-title"><span class="icon">📋</span> Detaillierte Beschreibung</div>
+      <div class="detail-text" id="longDescription">
+        Stelle die Lagerzeit und den Ort ein, um eine detaillierte Beschreibung des Kefir-Zustands zu erhalten.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============ INFO TAB ============ -->
+<div class="tab-content hidden" id="tab-info">
+
+  <div class="info-section">
+    <h2>🧊 Knollen-Lagerung im Urlaub</h2>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <h4>📅 Kurzurlaub (bis 1 Woche)</h4>
+        <p>Kefirknollen in frische Milch geben (mind. 2-3 Tassen pro EL Knollen). Fest verschließen und im Kühlschrank lagern. Die Kälte verlangsamt die Fermentation stark. Nach der Rückkehr die ersten 1-2 Chargen vorsichtig testen – die Knollen brauchen etwas Zeit zum "Aufwachen".</p>
+      </div>
+      <div class="info-card">
+        <h4>🏖️ Längerer Urlaub (1-4 Wochen)</h4>
+        <p>Knollen in ein Glas mit reichlich frischer Milch geben und im Kühlschrank aufbewahren. Je länger der Aufenthalt, desto mehr Milch verwenden. Nach einem Monat steigt das Risiko von Schäden, besonders beim Wachstum. Nach der Rückkehr: kleine Milchmengen verwenden und langsam steigern.</p>
+      </div>
+      <div class="info-card">
+        <h4>❄️ Einfrieren (1-12 Monate)</h4>
+        <p>Knollen abspülen und trockentupfen. In Milchpulver einbetten und in einem Gefrierbeutel oder -glas einfrieren. Hält bis zu 9-12 Monate sicher. Zum Reaktivieren: im Kühlschrank auftauen lassen, dann mit frischer Milch fermentieren. Die ersten Chargen können abweichend schmecken.</p>
+      </div>
+      <div class="info-card">
+        <h4>🌡️ Trocknen (Langzeit-Backup)</h4>
+        <p>Knollen abspülen, auf Backpapier ausbreiten und bei Raumtemperatur 3-5 Tage trocknen lassen. Die Temperatur sollte 38°C nicht übersteigen. Getrocknete Knollen halten im Kühlschrank bis zu 6 Monate. Nachteil: Das Wachstum kann nach dem Reaktivieren eingeschränkt sein.</p>
+      </div>
+    </div>
+
+    <div class="tip-box">
+      <h4>💡 Tipp</h4>
+      <p>Wechsle nicht zu oft zwischen Kühlschrank und Raumtemperatur – maximal einmal im Monat. Häufiges Hin und Her kann die Knollen dauerhaft aus dem Gleichgewicht bringen. Am besten immer ein Backup-Set im Gefrierfach aufbewahren!</p>
+    </div>
+  </div>
+
+  <div class="info-section">
+    <h2>🥛 Kefir selbst herstellen</h2>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <h4>Was du brauchst</h4>
+        <ul>
+          <li>Kefirknollen (lebend, nicht getrocknet für beste Ergebnisse)</li>
+          <li>Frische Milch (Vollmilch empfohlen, pasteurisiert OK)</li>
+          <li>Glas oder Keramikgefäß (kein Metall!)</li>
+          <li>Plastik- oder Nylonsieb</li>
+          <li>Tuch oder lockerer Deckel</li>
+        </ul>
+      </div>
+      <div class="info-card">
+        <h4>Grundrezept</h4>
+        <p><strong>Verhältnis:</strong> ~1 EL Knollen auf 1-2 Tassen Milch. Neue Knollen starten mit weniger Milch (1:6-Verhältnis), eingespielte Knollen vertragen bis 1:32.</p>
+        <p style="margin-top:8px"><strong>Temperatur:</strong> 18-25°C ideal (Raumtemperatur). Direkte Sonne vermeiden.</p>
+        <p style="margin-top:8px"><strong>Dauer:</strong> 12-48 Stunden je nach gewünschtem Geschmack und Temperatur.</p>
+      </div>
+      <div class="info-card">
+        <h4>Fermentationszeiten</h4>
+        <ul>
+          <li><strong>12 Stunden:</strong> Mild, dünnflüssig, leicht säuerlich</li>
+          <li><strong>24 Stunden:</strong> Optimal! Buttermilch-Konsistenz, angenehm säuerlich</li>
+          <li><strong>36-48 Stunden:</strong> Sehr sauer, dickflüssig, mehr Kohlensäure</li>
+          <li><strong>48+ Stunden:</strong> Stark überfermentiert, eventuell getrennt in Quark und Molke</li>
+        </ul>
+      </div>
+      <div class="info-card">
+        <h4>Zweite Fermentation</h4>
+        <p>Nach dem Abseihen der Knollen kann der Kefir für 12-24 Stunden bei Raumtemperatur stehen gelassen werden. Er wird sprudeliger und entwickelt einen komplexeren Geschmack. Früchte oder Kräuter können hinzugefügt werden.</p>
+      </div>
+    </div>
+
+    <h3>Worauf du achten musst</h3>
+    <div class="info-grid">
+      <div class="info-card">
+        <h4>✅ Gute Zeichen</h4>
+        <ul>
+          <li>Angenehm säuerlicher Geruch</li>
+          <li>Cremige, leicht dickflüssige Konsistenz</li>
+          <li>Knollen wachsen und vermehren sich</li>
+          <li>Leichte Trennung in Quark und klare Molke</li>
+          <li>Etwas Kohlensäure (prickeln)</li>
+        </ul>
+      </div>
+      <div class="info-card">
+        <h4>⚠️ Warnzeichen</h4>
+        <ul>
+          <li>Rosa, orange oder schwarze Verfärbungen</li>
+          <li>Schimmelbildung auf der Oberfläche</li>
+          <li>Stark unangenehmer, fauliger Geruch</li>
+          <li>Schleimige Textur (nicht normal dickflüssig)</li>
+          <li>Knollen schrumpfen stetig oder lösen sich auf</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-section">
+    <h2>⚠️ Gefahren & Sicherheit</h2>
+
+    <div class="warning-box">
+      <h4>🚨 Wann wird Kefir gefährlich?</h4>
+      <p>Kefir ist dank seines niedrigen pH-Werts (ca. 4.5) und seiner probiotischen Kultur generell sehr sicher. Pathogene Keime können sich in der sauren Umgebung kaum vermehren. Allerdings:</p>
+      <ul style="padding-left:18px;margin-top:8px;font-size:14px;line-height:1.7;color:var(--charcoal-light)">
+        <li><strong>Kontamination:</strong> Wenn Fremdkörper, Schmutz oder kontaminiertes Wasser in den Kefir gelangen, kann Schimmel entstehen – dann sofort wegwerfen!</li>
+        <li><strong>Zu warm gelagert (über 40°C):</strong> Hohe Temperaturen können die Schutzkultur schädigen und pathogenen Bakterien Raum geben.</li>
+        <li><strong>Schimmel:</strong> Grüner, schwarzer, rosa oder pelziger Belag ist IMMER ein Grund, den gesamten Ansatz zu verwerfen.</li>
+        <li><strong>Extremes Überfermentieren:</strong> Nach vielen Wochen bei Raumtemperatur kann der Kefir extrem sauer und ungenießbar werden, ist aber selten gefährlich.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="info-section">
+    <h2>👥 Wer sollte Kefir trinken?</h2>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <h4>✅ Empfohlen für</h4>
+        <ul>
+          <li>Menschen mit Verdauungsproblemen (Reizdarm, Verstopfung)</li>
+          <li>Personen nach Antibiotika-Kuren (Darmflora-Aufbau)</li>
+          <li>Menschen mit leichter Laktoseintoleranz (Kefir hat weniger Laktose)</li>
+          <li>Sportler und körperlich Aktive (Protein, Kalzium)</li>
+          <li>Menschen, die ihre Knochengesundheit stärken wollen</li>
+          <li>Alle, die ihre Darmflora diversifizieren möchten</li>
+        </ul>
+      </div>
+      <div class="info-card">
+        <h4>⚠️ Vorsicht bei</h4>
+        <ul>
+          <li><strong>Immunsuppression:</strong> Menschen mit geschwächtem Immunsystem sollten vorher ärztlich beraten werden – lebende Kulturen könnten Infektionsrisiko erhöhen</li>
+          <li><strong>Milcheiweißallergie:</strong> Milchkefir vermeiden (Wasserkefir als Alternative)</li>
+          <li><strong>Schwangerschaft/Stillzeit:</strong> Noch nicht ausreichend erforscht – Rücksprache mit Arzt</li>
+          <li><strong>Medikamente:</strong> Disulfiram (Antabus) – Kefir enthält geringe Mengen Alkohol (0.5-2%)</li>
+          <li><strong>Diabetes:</strong> Aromatisierter Kefir kann viel Zucker enthalten</li>
+        </ul>
+        <p style="margin-top:10px;font-size:13px"><strong>Empfohlene Menge:</strong> 1-3 Gläser (237-710 ml) pro Tag. Langsam beginnen!</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ NOTES TAB ============ -->
+<div class="tab-content hidden" id="tab-notes">
+  <div class="notes-header">
+    <h2>📝 Meine Kefir-Notizen</h2>
+    <button class="btn btn-primary" id="addNoteBtn">+ Neue Notiz</button>
+  </div>
+
+  <div class="note-form hidden" id="noteForm">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Titel</label>
+        <input type="text" id="noteTitle" placeholder="z.B. Versuch mit Vollmilch...">
+      </div>
+      <div class="form-group">
+        <label>Datum</label>
+        <input type="date" id="noteDate">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Lagerort</label>
+        <select id="noteLocation">
+          <option value="kühlschrank">Kühlschrank</option>
+          <option value="raumtemperatur">Raumtemperatur</option>
+          <option value="sonstiges">Sonstiges</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Lagerzeit</label>
+        <input type="text" id="noteDuration" placeholder="z.B. 24 Stunden, 3 Tage...">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Erfahrungsbericht</label>
+      <textarea id="noteBody" placeholder="Wie hat sich der Kefir entwickelt? Geschmack, Konsistenz, Geruch..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" id="saveNoteBtn">Speichern</button>
+      <button class="btn btn-secondary" id="cancelNoteBtn">Abbrechen</button>
+    </div>
+  </div>
+
+  <div class="notes-list" id="notesList">
+    <div class="empty-state" id="emptyNotes">
+      <div class="icon">📝</div>
+      <p>Noch keine Notizen vorhanden.<br>Erstelle deine erste Kefir-Notiz!</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ FIREBASE SETUP ============
+const firebaseConfig = {
+  apiKey: "AIzaSyAG-Ih6ZjoDgI19zni67aWLfEYuvCEMOgk",
+  authDomain: "firstproject-de5f2.firebaseapp.com",
+  projectId: "firstproject-de5f2",
+  storageBucket: "firstproject-de5f2.firebasestorage.app",
+  messagingSenderId: "238286457776",
+  appId: "1:238286457776:web:a18e6ade7b8a33b6b6a475",
+  measurementId: "G-EH80Y3NJWZ"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ============ USER ID ============
+function getUserId() {
+  let id = localStorage.getItem('kefir_user_id');
+  if (!id) {
+    id = 'user_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('kefir_user_id', id);
+  }
+  return id;
+}
+const userId = getUserId();
+document.getElementById('userIdDisplay').textContent = userId.substr(0, 12);
+
+// ============ TAB NAVIGATION ============
+const tabBtns = document.querySelectorAll('.tab-btn');
+const tabContents = document.querySelectorAll('.tab-content');
+
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    tabBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tabContents.forEach(tc => tc.classList.add('hidden'));
+    document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+  });
+});
+
+// ============ SLIDER LOGIC ============
+const locationSlider = document.getElementById('locationSlider');
+const timeSlider = document.getElementById('timeSlider');
+const fatSlider = document.getElementById('fatSlider');
+
+const fatValues = ['0.5%', '1.5%', '3.5%', '3.8%+'];
+
+function formatTime(hours) {
+  if (hours < 1) return '0 Stunden';
+  if (hours < 24) return hours + ' Stunden';
+  const days = Math.floor(hours / 24);
+  const rem = hours % 24;
+  if (rem === 0) return days + (days === 1 ? ' Tag' : ' Tage');
+  return days + (days === 1 ? ' Tag ' : ' Tage ') + rem + 'h';
+}
+
+function getState() {
+  const isRoom = parseInt(locationSlider.value) === 1;
+  const hours = parseInt(timeSlider.value);
+  const fatIdx = parseInt(fatSlider.value);
+  const temp = isRoom ? 22 : 4;
+  return { isRoom, hours, fatIdx, temp };
+}
+
+function calcKefirProperties(state) {
+  const { isRoom, hours, fatIdx } = state;
+  const speed = isRoom ? 1.0 : 0.12;
+  const effectiveHours = hours * speed;
+
+  // Acidity: rises with time
+  const acidity = Math.min(100, effectiveHours * 2.8);
+  // Fizz: peaks around 24-48 effective hours then slowly rises
+  const fizz = Math.min(90, effectiveHours * 1.8);
+  // Thickness: increases with fat and time, then decreases with over-fermentation
+  const baseThick = 20 + fatIdx * 15;
+  const thickFromTime = effectiveHours < 30 ? effectiveHours * 2 : 60 - (effectiveHours - 30) * 0.5;
+  const thickness = Math.max(10, Math.min(100, baseThick + thickFromTime));
+  // Probiotics: increase then plateau
+  const probiotics = Math.min(100, 15 + effectiveHours * 2.5);
+  // Alcohol: tiny, increases slowly
+  const alcohol = Math.min(80, effectiveHours * 0.8);
+  // Lactose remaining: decreases with fermentation
+  const lactose = Math.max(2, 95 - effectiveHours * 3);
+  // Whey separation: starts after over-fermentation
+  const whey = effectiveHours > 28 ? Math.min(50, (effectiveHours - 28) * 1.5) : 0;
+
+  // Status
+  let status, statusClass;
+  if (effectiveHours < 8) {
+    status = '✅ Frisch & Mild';
+    statusClass = 'status-safe';
+  } else if (effectiveHours < 20) {
+    status = '✅ Leicht fermentiert';
+    statusClass = 'status-safe';
+  } else if (effectiveHours < 32) {
+    status = '✅ Optimal fermentiert';
+    statusClass = 'status-safe';
+  } else if (effectiveHours < 55) {
+    status = '⚠️ Stark fermentiert';
+    statusClass = 'status-warning';
+  } else if (effectiveHours < 100) {
+    status = '⚠️ Überfermentiert';
+    statusClass = 'status-warning';
+  } else {
+    status = '🛑 Extrem überfermentiert';
+    statusClass = 'status-danger';
+  }
+
+  // Color
+  const r = 255;
+  const g = Math.max(200, 255 - effectiveHours * 1.2);
+  const b = Math.max(160, 240 - effectiveHours * 2);
+  const color = `rgb(${r},${Math.round(g)},${Math.round(b)})`;
+  const wheyColor = `rgba(220,210,150,${Math.min(0.6, whey / 80)})`;
+
+  return { acidity, fizz, thickness, probiotics, alcohol, lactose, whey, status, statusClass, color, wheyColor, effectiveHours };
+}
+
+function getDescription(state, props) {
+  const { isRoom, hours, fatIdx } = state;
+  const { effectiveHours } = props;
+  const location = isRoom ? 'Raumtemperatur (~22°C)' : 'Kühlschrank (~4°C)';
+  const fat = fatValues[fatIdx];
+
+  let desc = `<strong>Lagerung:</strong> ${formatTime(hours)} bei ${location} | Milchfett: ${fat}<br><br>`;
+
+  if (effectiveHours < 3) {
+    desc += 'Der Kefir ist praktisch noch unverändert. Die Milch sieht und schmeckt fast normal. Die Kefirknollen haben gerade erst begonnen zu arbeiten.';
+  } else if (effectiveHours < 8) {
+    desc += 'Leichte Fermentation hat begonnen. Der Kefir ist noch dünnflüssig, hat aber bereits einen Hauch von Säure. Ideal für Einsteiger, die einen milden Geschmack bevorzugen. Die Laktose wird langsam abgebaut.';
+  } else if (effectiveHours < 16) {
+    desc += 'Der Kefir beginnt sich deutlich zu verändern. Die Konsistenz wird cremiger, der Geschmack ist angenehm säuerlich. Die probiotischen Kulturen sind aktiv und vermehren sich. Ein leichtes Prickeln kann spürbar sein.';
+  } else if (effectiveHours < 28) {
+    desc += '<strong>Optimaler Zeitpunkt!</strong> Der Kefir hat eine buttermilch-ähnliche Konsistenz erreicht. Der Geschmack ist angenehm herb-säuerlich mit leichter Hefenote. Die probiotische Aktivität ist auf dem Höhepunkt. Die meiste Laktose wurde abgebaut – gut für Menschen mit leichter Laktoseintoleranz.';
+  } else if (effectiveHours < 45) {
+    desc += 'Der Kefir ist nun stark fermentiert. Er beginnt sich in dickere Quark-Anteile und klare Molke (Whey) zu trennen. Der Geschmack ist deutlich sauer und hefig. Durch Umrühren kann die Konsistenz wieder vereinheitlicht werden. Immer noch sicher und sehr probiotikreich.';
+  } else if (effectiveHours < 80) {
+    desc += 'Deutliche Überfermentation. Der Kefir hat sich stark in Quark und Molke getrennt. Der Geschmack ist sehr sauer, fast käseartig. Die Konsistenz kann körnig werden. Noch trinkbar, aber für die meisten Geschmäcker zu intensiv. Die Knollen sollten abgeseiht und mit frischer Milch gefüttert werden.';
+  } else {
+    desc += 'Extreme Überfermentation. Der Kefir ist sehr sauer mit einem starken Hefegeschmack. Die Konsistenz ist wässrig-körnig. Obwohl durch den niedrigen pH-Wert kaum gefährlich, ist er geschmacklich ungenießbar. Die Knollen sollten umgehend in frische Milch gesetzt und eventuell im Kühlschrank ruhen gelassen werden.';
+  }
+
+  if (!isRoom && hours > 168) {
+    desc += '<br><br><strong>Hinweis:</strong> Bei langer Kühlschranklagerung verlangsamt sich die Fermentation stark. Die Knollen gehen in eine Art Ruhezustand. Acessigsäurebakterien können bei Kälte aktiver sein als Milchsäurebakterien, was zu einem veränderten Geschmacksprofil führen kann.';
+  }
+
+  if (isRoom && hours > 72) {
+    desc += '<br><br><strong>Hinweis:</strong> Bei Raumtemperatur über 3 Tage ist der Kefir sehr stark fermentiert. Die Knollen sollten unbedingt abgeseiht werden, um sie nicht zu schädigen.';
+  }
+
+  return desc;
+}
+
+function updateDashboard() {
+  const state = getState();
+
+  // Update labels
+  document.getElementById('locationLabel').textContent = state.isRoom ? 'Raumtemperatur (~22°C)' : 'Kühlschrank (~4°C)';
+  document.getElementById('timeLabel').textContent = formatTime(state.hours);
+  document.getElementById('fatLabel').textContent = fatValues[state.fatIdx];
+
+  const props = calcKefirProperties(state);
+
+  // Update bars
+  document.getElementById('barAcid').style.width = props.acidity + '%';
+  document.getElementById('barFizz').style.width = props.fizz + '%';
+  document.getElementById('barThick').style.width = props.thickness + '%';
+  document.getElementById('barProb').style.width = props.probiotics + '%';
+  document.getElementById('barAlc').style.width = props.alcohol + '%';
+  document.getElementById('barLact').style.width = props.lactose + '%';
+
+  // Color bars by severity
+  document.getElementById('barAcid').style.background = props.acidity > 70 ? 'var(--danger)' : props.acidity > 40 ? 'var(--sour)' : 'var(--olive)';
+  document.getElementById('barAlc').style.background = props.alcohol > 40 ? 'var(--rust)' : 'var(--olive)';
+
+  // Update glass
+  const liquidHeight = 75 + props.thickness * 0.1;
+  const liquid = document.getElementById('kefirLiquid');
+  liquid.style.height = liquidHeight + '%';
+  liquid.style.background = props.color;
+
+  const wheyEl = document.getElementById('kefirWhey');
+  wheyEl.style.height = (props.whey * 1.5) + '%';
+  wheyEl.style.background = props.wheyColor;
+
+  // Update status
+  const badge = document.getElementById('statusBadge');
+  badge.textContent = props.status;
+  badge.className = 'status-badge ' + props.statusClass;
+
+  // Update detail
+  document.getElementById('detailText').innerHTML =
+    `Säure: <strong>${Math.round(props.acidity)}%</strong> | Kohlensäure: <strong>${Math.round(props.fizz)}%</strong> | Probiotika: <strong>${Math.round(props.probiotics)}%</strong>`;
+
+  // Long description
+  document.getElementById('longDescription').innerHTML = getDescription(state, props);
+
+  // Save to Firebase
+  saveSliderState(state);
+}
+
+// ============ FIREBASE PERSISTENCE ============
+let saveTimeout;
+function saveSliderState(state) {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    db.collection('kefir_states').doc(userId).set({
+      location: state.isRoom ? 1 : 0,
+      time: state.hours,
+      fat: state.fatIdx,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(err => console.log('Save error:', err));
+  }, 500);
+}
+
+function loadSliderState() {
+  db.collection('kefir_states').doc(userId).get().then(doc => {
+    if (doc.exists) {
+      const data = doc.data();
+      locationSlider.value = data.location || 0;
+      timeSlider.value = data.time || 0;
+      fatSlider.value = data.fat !== undefined ? data.fat : 2;
+      updateDashboard();
+    }
+  }).catch(err => console.log('Load error:', err));
+}
+
+locationSlider.addEventListener('input', updateDashboard);
+timeSlider.addEventListener('input', updateDashboard);
+fatSlider.addEventListener('input', updateDashboard);
+
+// ============ NOTES SYSTEM ============
+const addNoteBtn = document.getElementById('addNoteBtn');
+const noteForm = document.getElementById('noteForm');
+const saveNoteBtn = document.getElementById('saveNoteBtn');
+const cancelNoteBtn = document.getElementById('cancelNoteBtn');
+const notesList = document.getElementById('notesList');
+const emptyNotes = document.getElementById('emptyNotes');
+
+let editingNoteId = null;
+
+addNoteBtn.addEventListener('click', () => {
+  editingNoteId = null;
+  document.getElementById('noteTitle').value = '';
+  document.getElementById('noteDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('noteLocation').value = 'kühlschrank';
+  document.getElementById('noteDuration').value = '';
+  document.getElementById('noteBody').value = '';
+  noteForm.classList.remove('hidden');
+});
+
+cancelNoteBtn.addEventListener('click', () => {
+  noteForm.classList.add('hidden');
+  editingNoteId = null;
+});
+
+saveNoteBtn.addEventListener('click', () => {
+  const title = document.getElementById('noteTitle').value.trim();
+  const body = document.getElementById('noteBody').value.trim();
+  if (!title && !body) return;
+
+  const noteData = {
+    title: title || 'Unbenannte Notiz',
+    date: document.getElementById('noteDate').value,
+    location: document.getElementById('noteLocation').value,
+    duration: document.getElementById('noteDuration').value,
+    body: body,
+    userId: userId,
+    favorite: false,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  if (editingNoteId) {
+    db.collection('kefir_notes').doc(editingNoteId).update(noteData).then(() => {
+      noteForm.classList.add('hidden');
+      editingNoteId = null;
+    });
+  } else {
+    noteData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    db.collection('kefir_notes').add(noteData).then(() => {
+      noteForm.classList.add('hidden');
+    });
+  }
+});
+
+function renderNotes(snapshot) {
+  // Clear all except empty state
+  Array.from(notesList.children).forEach(child => {
+    if (child.id !== 'emptyNotes') child.remove();
+  });
+
+  const notes = [];
+  snapshot.forEach(doc => {
+    notes.push({ id: doc.id, ...doc.data() });
+  });
+
+  if (notes.length === 0) {
+    emptyNotes.classList.remove('hidden');
+    return;
+  }
+  emptyNotes.classList.add('hidden');
+
+  // Sort: favorites first, then by date
+  notes.sort((a, b) => {
+    if (a.favorite && !b.favorite) return -1;
+    if (!a.favorite && b.favorite) return 1;
+    return (b.date || '').localeCompare(a.date || '');
+  });
+
+  notes.forEach(note => {
+    const card = document.createElement('div');
+    card.className = 'note-card' + (note.favorite ? ' favorite' : '');
+
+    const locMap = { 'kühlschrank': '🧊 Kühlschrank', 'raumtemperatur': '🌡️ Raumtemp.', 'sonstiges': '📍 Sonstiges' };
+
+    card.innerHTML = `
+      <button class="fav-btn" data-id="${note.id}" data-fav="${note.favorite}">${note.favorite ? '⭐' : '☆'}</button>
+      <div class="note-title">${escapeHtml(note.title)}</div>
+      <div class="note-meta">
+        <span>📅 ${note.date || '—'}</span>
+        <span>${locMap[note.location] || note.location}</span>
+        ${note.duration ? `<span>⏱️ ${escapeHtml(note.duration)}</span>` : ''}
+      </div>
+      <div class="note-body">${escapeHtml(note.body)}</div>
+      <div class="note-actions">
+        <button class="btn btn-secondary btn-small edit-note" data-id="${note.id}">✏️ Bearbeiten</button>
+        <button class="btn btn-danger btn-small delete-note" data-id="${note.id}">🗑️ Löschen</button>
+      </div>
+    `;
+
+    notesList.appendChild(card);
+  });
+
+  // Event listeners
+  notesList.querySelectorAll('.fav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const currentFav = btn.dataset.fav === 'true';
+      db.collection('kefir_notes').doc(id).update({ favorite: !currentFav });
+    });
+  });
+
+  notesList.querySelectorAll('.edit-note').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const note = notes.find(n => n.id === btn.dataset.id);
+      if (!note) return;
+      editingNoteId = note.id;
+      document.getElementById('noteTitle').value = note.title;
+      document.getElementById('noteDate').value = note.date || '';
+      document.getElementById('noteLocation').value = note.location || 'kühlschrank';
+      document.getElementById('noteDuration').value = note.duration || '';
+      document.getElementById('noteBody').value = note.body || '';
+      noteForm.classList.remove('hidden');
+      noteForm.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  notesList.querySelectorAll('.delete-note').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (confirm('Notiz wirklich löschen?')) {
+        db.collection('kefir_notes').doc(btn.dataset.id).delete();
+      }
+    });
+  });
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Real-time listener for notes (multi-user!)
+db.collection('kefir_notes')
+  .where('userId', '==', userId)
+  .onSnapshot(snapshot => {
+    renderNotes(snapshot);
+  }, err => console.log('Notes listener error:', err));
+
+// ============ INIT ============
+window.addEventListener('load', () => {
+  loadSliderState();
+  updateDashboard();
+  setTimeout(() => {
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.classList.add('fade-out');
+    setTimeout(() => overlay.remove(), 500);
+  }, 800);
+});
+</script>
+</body>
+</html>
