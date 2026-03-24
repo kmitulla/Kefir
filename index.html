@@ -771,10 +771,10 @@ input[type="range"]::-moz-range-thumb {
           <span>Lagerort</span>
           <span class="slider-value" id="locationLabel">Kühlschrank (4°C)</span>
         </div>
-        <input type="range" id="locationSlider" min="0" max="1" step="1" value="0">
+        <input type="range" id="locationSlider" min="4" max="22" step="2" value="4">
         <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--charcoal-light);margin-top:4px">
-          <span>Kühlschrank (~4°C)</span>
-          <span>Raumtemperatur (~22°C)</span>
+          <span>4°C</span>
+          <span>22°C</span>
         </div>
       </div>
 
@@ -1105,16 +1105,16 @@ function formatTime(hours) {
 }
 
 function getState() {
-  const isRoom = parseInt(locationSlider.value) === 1;
+  const temp = parseInt(locationSlider.value);
+  const isRoom = temp >= 18;
   const hours = parseInt(timeSlider.value);
   const fatIdx = parseInt(fatSlider.value);
-  const temp = isRoom ? 22 : 4;
   return { isRoom, hours, fatIdx, temp };
 }
 
 function calcKefirProperties(state) {
-  const { isRoom, hours, fatIdx } = state;
-  const speed = isRoom ? 1.0 : 0.12;
+  const { isRoom, hours, fatIdx, temp } = state;
+  const speed = 0.12 + (temp - 4) / 18 * 0.88;
   const effectiveHours = hours * speed;
 
   // Acidity: rises with time
@@ -1169,7 +1169,7 @@ function calcKefirProperties(state) {
 function getDescription(state, props) {
   const { isRoom, hours, fatIdx } = state;
   const { effectiveHours } = props;
-  const location = isRoom ? 'Raumtemperatur (~22°C)' : 'Kühlschrank (~4°C)';
+  const location = `${state.temp}°C`;
   const fat = fatValues[fatIdx];
 
   let desc = `<strong>Lagerung:</strong> ${formatTime(hours)} bei ${location} | Milchfett: ${fat}<br><br>`;
@@ -1205,7 +1205,7 @@ function updateDashboard() {
   const state = getState();
 
   // Update labels
-  document.getElementById('locationLabel').textContent = state.isRoom ? 'Raumtemperatur (~22°C)' : 'Kühlschrank (~4°C)';
+  document.getElementById('locationLabel').textContent = `${state.temp}°C`;
   document.getElementById('timeLabel').textContent = formatTime(state.hours);
   document.getElementById('fatLabel').textContent = fatValues[state.fatIdx];
 
@@ -1255,7 +1255,7 @@ function saveSliderState(state) {
   clearTimeout(saveTimeout);
   saveTimeout = setTimeout(() => {
     db.collection('kefir_states').doc(userId).set({
-      location: state.isRoom ? 1 : 0,
+      location: state.temp,
       time: state.hours,
       fat: state.fatIdx,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1267,7 +1267,8 @@ function loadSliderState() {
   db.collection('kefir_states').doc(userId).get().then(doc => {
     if (doc.exists) {
       const data = doc.data();
-      locationSlider.value = data.location || 0;
+      const savedLocation = data.location;
+      locationSlider.value = (savedLocation === 0 || savedLocation === 1) ? (savedLocation === 1 ? 22 : 4) : (savedLocation || 4);
       timeSlider.value = data.time || 0;
       fatSlider.value = data.fat !== undefined ? data.fat : 2;
       updateDashboard();
