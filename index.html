@@ -83,13 +83,6 @@ body {
   gap: 12px;
 }
 
-.user-id-display {
-  font-size: 12px;
-  color: var(--charcoal-light);
-  background: var(--sand);
-  padding: 4px 12px;
-  border-radius: 20px;
-}
 
 .sync-indicator {
   width: 8px;
@@ -749,7 +742,6 @@ input[type="range"]::-moz-range-thumb {
   </div>
   <div class="user-section">
     <div class="sync-indicator" id="syncIndicator" title="Mit Firebase verbunden"></div>
-    <div class="user-id-display" id="userIdDisplay">Lade...</div>
   </div>
 </header>
 
@@ -1063,17 +1055,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// ============ USER ID ============
-function getUserId() {
-  let id = localStorage.getItem('kefir_user_id');
-  if (!id) {
-    id = 'user_' + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem('kefir_user_id', id);
-  }
-  return id;
-}
-const userId = getUserId();
-document.getElementById('userIdDisplay').textContent = userId.substr(0, 12);
 
 // ============ TAB NAVIGATION ============
 const tabBtns = document.querySelectorAll('.tab-btn');
@@ -1256,7 +1237,7 @@ let saveTimeout;
 function saveSliderState(state) {
   clearTimeout(saveTimeout);
   saveTimeout = setTimeout(() => {
-    db.collection('kefir_states').doc(userId).set({
+    db.collection('kefir_states').doc('default').set({
       location: state.temp,
       time: state.hours,
       fat: state.fatIdx,
@@ -1266,7 +1247,7 @@ function saveSliderState(state) {
 }
 
 function loadSliderState() {
-  db.collection('kefir_states').doc(userId).get().then(doc => {
+  db.collection('kefir_states').doc('default').get().then(doc => {
     if (doc.exists) {
       const data = doc.data();
       const savedLocation = data.location;
@@ -1323,7 +1304,6 @@ saveNoteBtn.addEventListener('click', () => {
     location: document.getElementById('noteLocation').value,
     duration: document.getElementById('noteDuration').value,
     body: body,
-    userId: userId,
     favorite: false,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
@@ -1428,9 +1408,8 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// Real-time listener for notes (multi-user!)
+// Real-time listener for notes
 db.collection('kefir_notes')
-  .where('userId', '==', userId)
   .onSnapshot(snapshot => {
     renderNotes(snapshot);
   }, err => console.log('Notes listener error:', err));
