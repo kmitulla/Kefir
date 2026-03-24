@@ -839,7 +839,7 @@ input[type="range"]::-moz-range-thumb {
           <div class="prop-track"><div class="prop-fill" id="barProb" style="width:30%;background:var(--olive)"></div></div>
         </div>
         <div class="prop-bar">
-          <div class="prop-label">Alkohol</div>
+          <div class="prop-label">Alkohol <span id="alcValue" style="font-size:11px;color:var(--charcoal-light);font-weight:normal">~0.00%</span></div>
           <div class="prop-track"><div class="prop-fill" id="barAlc" style="width:2%;background:var(--rust)"></div></div>
         </div>
         <div class="prop-bar">
@@ -1217,6 +1217,8 @@ function updateDashboard() {
   document.getElementById('barThick').style.width = props.thickness + '%';
   document.getElementById('barProb').style.width = props.probiotics + '%';
   document.getElementById('barAlc').style.width = props.alcohol + '%';
+  const alcoholPct = (props.alcohol / 80 * 2).toFixed(2);
+  document.getElementById('alcValue').textContent = '~' + alcoholPct + '%';
   document.getElementById('barLact').style.width = props.lactose + '%';
 
   // Color bars by severity
@@ -1276,7 +1278,12 @@ function loadSliderState() {
   }).catch(err => console.log('Load error:', err));
 }
 
-locationSlider.addEventListener('input', updateDashboard);
+locationSlider.addEventListener('input', () => {
+  const raw = parseInt(locationSlider.value);
+  const snapped = Math.round((raw - 4) / 2) * 2 + 4;
+  locationSlider.value = Math.max(4, Math.min(22, snapped));
+  updateDashboard();
+});
 timeSlider.addEventListener('input', updateDashboard);
 fatSlider.addEventListener('input', updateDashboard);
 
