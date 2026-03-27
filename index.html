@@ -1223,7 +1223,7 @@ function updateDashboard() {
 
   // Update detail
   document.getElementById('detailText').innerHTML =
-    `Säure: <strong>${Math.round(props.acidity)}%</strong> | Kohlensäure: <strong>${Math.round(props.fizz)}%</strong> | Probiotika: <strong>${Math.round(props.probiotics)}%</strong>`;
+    `Säure: <strong>${Math.round(props.acidity)}%</strong> | Kohlensäure: <strong>${Math.round(props.fizz)}%</strong> | Probiotika: <strong>${Math.round(props.probiotics)}%</strong> | Alkohol: <strong>~${(props.alcohol / 80 * 2).toFixed(2)}%</strong>`;
 
   // Long description
   document.getElementById('longDescription').innerHTML = getDescription(state, props);
